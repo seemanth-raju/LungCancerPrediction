@@ -1,2 +1,1 @@
-# LungCancerPrediction
-detects lungcancer
+# pulmodetect

@@ -1,8 +1,8 @@
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.applications import VGG16
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Flatten, Dropout, LeakyReLU
-from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.models import Model
+from tensorflow.keras import layers, optimizers
+import tensorflow as tf
 
 # Define directories for train, validation, and test sets
 train_dir = './Data/train'
@@ -23,7 +23,6 @@ train_datagen = ImageDataGenerator(
     zoom_range=0.2,
     horizontal_flip=True
 )
-
 
 # Normalization for validation and test data (no augmentation)
 validation_datagen = ImageDataGenerator(rescale=1./255)
@@ -57,21 +56,22 @@ number_of_classes = 4
 # Load the pre-trained VGG16 model without the top (fully connected) layers
 base_model = VGG16(weights='imagenet', include_top=False, input_shape=(img_width, img_height, 3))
 
-# Freeze the layers in the base model
-for layer in base_model.layers:
-    layer.trainable = False
+# Unfreeze the last few layers of VGG16 for fine-tuning
+for layer in base_model.layers[:-4]:
+    layer.trainable = True
 
-# Create a new model on top of the base model
-model = Sequential()
-model.add(base_model)
-model.add(Flatten())
-model.add(Dense(256))
-model.add(LeakyReLU(alpha=0.2))
-model.add(Dropout(0.5))
-model.add(Dense(number_of_classes, activation='sigmoid'))
+# Create a new functional model using VGG16 as a base
+x = base_model.output
+x = layers.Flatten()(x)
+x = layers.Dense(256, kernel_regularizer=tf.keras.regularizers.l2(0.001), activation='relu')(x)
+x = layers.Dropout(0.5)(x)
+output = layers.Dense(number_of_classes, activation='sigmoid')(x)
+
+# Define the model
+model = Model(inputs=base_model.input, outputs=output)
 
 # Compile the model
-model.compile(optimizer=Adam(learning_rate=0.0007),
+model.compile(optimizer=optimizers.Adam(learning_rate=0.0001),
               loss='binary_crossentropy',
               metrics=['accuracy'])
 
@@ -84,3 +84,7 @@ history = model.fit(train_generator,
 
 # Save the model for future use (transfer learning model based on VGG16)
 model.save('transfer_learning_model.h5')
+
+# Evaluate the model on the test set
+test_metrics = model.evaluate(test_generator)
+print("Test Accuracy:", test_metrics[1])

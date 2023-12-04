@@ -20,7 +20,7 @@ test_generator = test_datagen.flow_from_directory(
 )
 
 # Load the saved model
-saved_model = load_model('re_saved_model.h5')
+saved_model = load_model('transfer_learning_model.h5')
 
 # Evaluate the model on the test data
 evaluation = saved_model.evaluate(test_generator)
